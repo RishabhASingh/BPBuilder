@@ -493,7 +493,43 @@ def populate_db():
             "Authentication Procedures": "OAuth2",
             "Client": ["Web", "REST"],
             "Lambda Code": """ \
-                
+                import requests
+                import json
+                import base64
+                import hashlib
+
+                def lambda_handler(event, context):
+                    
+                    response = requests.post('https://dev-eat.auth.eu-central-1.amazoncognito.com/oauth2/token',
+                                            data={"grant_type": "client_credentials",
+                                                "client_id":"7d30bi87iptegbrf2bp37p42gg",
+                                                "client_secret": "880tema3rvh3h63j4nquvgoh0lgts11n09bq8597fgrkvvd62su",
+                                                "scope":"eat/read"},
+                                            headers={"Content-Type": "application/x-www-form-urlencoded"})
+                    
+                    token = response.json()['access_token']
+                    print(token)
+                    
+                    filename = "Invoice.xml"
+                    rules = ["AUNZ_PEPPOL_1_0_10", "AUNZ_PEPPOL_SB_1_0_10", "AUNZ_UBL_1_0_10", "FR_EN16931_CII_1_3_14", "FR_EN16931_UBL_1_3_14", "RO_RO16931_UBL_1_0_8_EN16931", "RO_RO16931_UBL_1_0_8_CIUS_RO"]
+                    file = event["body"]
+
+                    bdata = file.encode("utf-8")
+                    b64encoded = base64.b64encode(bdata)
+                    b64estr = b64encoded.decode("utf-8")    
+                    md5h = hashlib.md5(b64encoded)
+
+                    data = json.dumps({"file":filename, "content":b64estr, "checksum":md5h.hexdigest()})
+                    params = {"rules":rules}
+                    headers = {"Content-Type": "application/json", "Accept-Language":"en", "Authorization":"Bearer " + token} 
+                    url = "https://services.ebusiness-cloud.com/ess-schematron/v1/api/validate?"          
+                    response = requests.request("POST", url[:-1], headers=headers, data=data, params=params)
+
+                    
+                    return {
+                        'statusCode': 200,
+                        'body': response.json()
+                    }
             """,
             "Requirements": ["requests"]
         },
@@ -515,7 +551,7 @@ def populate_db():
             "Outputs": ["Validation Report"],
             "Description": "Validates electronic documents in compliance with European and international standards.",
             "Link to company website/documentation": "https://ecosio.com/en/",
-            "API Endpoint": "https://api.ecosio.fake/validate",
+            "API Endpoint": "https://api.ecosio.sample/validate",
             "Instructions": "AWS Step Function setup required to use custom API endpoint.",
             "Authentication Procedures": "OAuth2",
             "Client": ["Web", "REST"]
@@ -547,7 +583,7 @@ def populate_db():
             "Network": "AU PEPPOL",
             "Description": "Securely sends invoices and business documents via AU PEPPOL network.",
             "Link to company website/documentation": "https://ademico.example.com/docs",
-            "API Endpoint": "https://api.ademico.fake/send",
+            "API Endpoint": "https://api.ademico.sample/send",
             "Instructions": "AWS Step Function setup required to use custom API endpoint.",
             "Authentication Procedures": "OAuth2",
             "Client": ["REST"]
@@ -561,12 +597,60 @@ def populate_db():
             "Outputs": ["JSON", "XML"],
             "Description": "Extracts structured data from unstructured business documents.",
             "Link to company website/documentation": "https://upbrains.example.com/docs",
-            "API Endpoint": "https://api.upbrains.fake/extract",
+            "API Endpoint": "https://workflow.upbrainsai.com/api/v1/webhooks/yS0k3e9RAQfESRDWUQskz",
             "Instructions": "AWS Step Function setup required to use custom API endpoint.",
             "Authentication Procedures": "Token",
             "Client": ["Web", "Command Line", "REST"],
             "Lambda Code": """ \
-                
+                import requests
+                import json
+                import base64
+                import hashlib
+                import os
+                import pre
+                import boto3
+
+                def lambda_handler(event, context):
+
+                    s3 = boto3.client('s3')    
+                    
+                    token = os.environ['token']
+                    workflowtoken = os.environ['workflowtoken']
+
+                    bucket = event['bucket']
+                    key = event['key']
+                    destination_bucket = bucket
+                    destination_key = key + "-upbrains"    
+
+                    file = s3.get_object(Bucket=event['bucket'], Key=event['key'])['Body'].read()
+
+                    url = "https://workflow.upbrainsai.com/api/v1/webhooks/yS0k3e9RAQfESRDWUQskz" # "https://xtract.upbrainsai.com/api/invoice"
+
+                    payload = {
+                        'file': file 
+                    }
+
+                    # files= [('file',(filename,file,'application/pdf'))]
+
+                    headers = {
+                        'Authorization': "Bearer " + workflowtoken,    
+                        'Content-Type': 'application/json'
+                    } 
+
+                    # response = requests.request("POST", url, headers=headers, json=payload)#, files=files) 
+                    # print(response.text)
+
+                    s3.put_object(Bucket=destination_bucket, Key=destination_key, Body=pre.pre, ContentType = "application/json")
+
+                    info = {
+                        "bucket": destination_bucket,
+                        "key": destination_key
+                    }
+                    
+                    return   {
+                        'statusCode': 200,
+                        'body': json.dumps(info)
+                    }
             """,
             "Requirements": ["requests"]
         },
@@ -579,7 +663,7 @@ def populate_db():
             "Outputs": ["JSON", "XML"],
             "Description": "Performs intelligent invoice extraction and returns JSON/XML formats.",
             "Link to company website/documentation": "https://www.ezzybills.com",
-            "API Endpoint": "https://api.ezzybills.fake/extract",
+            "API Endpoint": "https://api.ezzybills.sample/extract",
             "Instructions": "AWS Step Function setup required to use custom API endpoint.",
             "Authentication Procedures": "Token",
             "Client": ["Web", "REST"]
@@ -593,7 +677,7 @@ def populate_db():
             "Outputs": ["JSON", "XML"],
             "Description": "Transforms business documents into globally compliant formats.",
             "Link to company website/documentation": "https://tradeshift.com",
-            "API Endpoint": "https://api.tradeshift.fake/transform",
+            "API Endpoint": "https://api.tradeshift.sample/transform",
             "Instructions": "AWS Step Function setup required to use custom API endpoint.",
             "Authentication Procedures": "OAuth2",
             "Client": ["Web", "REST"]
